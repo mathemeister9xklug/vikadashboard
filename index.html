@@ -26,13 +26,11 @@
     </script>
 
     <style>
-        /* Padding oben angepasst, da der Header jetzt etwas schlanker ist */
         body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; padding-top: 100px; }
         
         .card-enter { animation: slideIn 0.5s ease-out forwards; opacity: 0; transform: translateY(20px); }
         @keyframes slideIn { to { opacity: 1; transform: translateY(0); } }
         
-        /* Pulse-Farbe an das helle Cyan angepasst für Dark Mode Header */
         .pulse-dot { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.7); animation: pulse-brand 2s infinite; }
         @keyframes pulse-brand {
             0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.7); }
@@ -94,10 +92,12 @@
         const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTE7keWA9m5TY5QQM08GAwGnescMZU5WLz18VU3zJCWZytwmfrGoNPj9K_aQT7KkVj0wlVC8-SWDHxO/pub?gid=0&single=true&output=csv'; 
         
         const REFRESH_RATE = 3000; 
+        
+        // Globale Variable speichert den letzten stabilen Zustand
+        let cachedCandidates = [];
 
         async function fetchCandidates() {
             try {
-                // Anti-Cache Strategie
                 const uniqueGoogleUrl = SHEET_CSV_URL + '&random=' + Math.random();
                 const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(uniqueGoogleUrl) + '&disableCache=' + Date.now();
 
@@ -106,15 +106,34 @@
 
                 const csvText = await response.text();
 
-                // Robustes Parsing mit PapaParse
                 Papa.parse(csvText, {
                     header: true,
                     skipEmptyLines: true, 
                     complete: function(results) {
-                        if (results.data && results.data.length > 0) {
-                            renderDashboard(results.data.reverse());
-                            document.getElementById('last-update').innerText = new Date().toLocaleTimeString();
+                        const newData = results.data;
+
+                        // --- ANTI-FLACKER-LOGIK ---
+                        
+                        // 1. Wenn gar keine Daten kommen (Fehler), abbrechen.
+                        if (!newData || newData.length === 0) {
+                            console.warn("Leere Daten empfangen. Ignoriere Update.");
+                            return; 
                         }
+
+                        // 2. Wenn wir vorher schon Kandidaten hatten, und jetzt plötzlich WENIGER da sind,
+                        // dann hat Google uns eine alte Version geschickt -> ABBRECHEN.
+                        if (cachedCandidates.length > 0 && newData.length < cachedCandidates.length) {
+                            console.warn("Veralteter Cache erkannt (Zeilen verschwunden). Ignoriere Update.");
+                            return;
+                        }
+                        
+                        // Wenn wir hier ankommen, sind die Daten "gut" oder "neu".
+                        // Wir speichern sie als neuen Standard.
+                        cachedCandidates = newData;
+                        
+                        // Wir rendern die stabilen Daten
+                        renderDashboard(cachedCandidates.slice().reverse()); // .slice() um das Original nicht zu verändern
+                        document.getElementById('last-update').innerText = new Date().toLocaleTimeString();
                     },
                     error: function(err) { console.error("CSV Fehler:", err); }
                 });
@@ -124,7 +143,7 @@
 
         function getScoreColor(score) {
             score = parseInt(score);
-            if (score >= 80) return 'text-brand bg-cyan-50 border-cyan-100'; // Brand Color für Top Scores
+            if (score >= 80) return 'text-brand bg-cyan-50 border-cyan-100'; 
             if (score >= 50) return 'text-yellow-600 bg-yellow-50 border-yellow-100';
             return 'text-red-600 bg-red-50 border-red-100';
         }
@@ -132,7 +151,6 @@
         function renderDashboard(candidates) {
             const grid = document.getElementById('candidate-grid');
             
-            // Sicherheits-Check
             if(candidates.length > 0 && !candidates[0]['Name'] && !candidates[0]['name']) {
                 return; 
             }
@@ -140,7 +158,6 @@
             grid.innerHTML = ''; 
 
             candidates.forEach((c, index) => {
-                // Mapping
                 const name = c['Name'] || c['name'] || 'Unbekannt';
                 const job = c['Job Titel'] || c['Jobtitel'] || c['job_title'] || 'Bewerber';
                 const score = c['Score'] || c['score'] || 0;
@@ -150,10 +167,9 @@
                 const scoreClass = getScoreColor(score);
                 const scoreWidth = Math.min(score, 100) + '%';
                 
-                // Farbe für den Balken bestimmen
                 let barColorClass = 'bg-red-500';
                 if(score >= 50) barColorClass = 'bg-yellow-400';
-                if(score >= 80) barColorClass = 'bg-brand'; // Brand Color für Top Balken
+                if(score >= 80) barColorClass = 'bg-brand';
 
                 const html = `
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-enter hover:shadow-md transition-shadow" style="animation-delay: ${index * 100}ms">
