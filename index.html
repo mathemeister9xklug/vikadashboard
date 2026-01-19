@@ -67,28 +67,62 @@
         const REFRESH_RATE = 3000; // Alle 3 Sekunden prüfen
 
         // CSV Parser (Simple Version)
+       // Verbesserter CSV Parser (Erlaubt Leerzeichen & Kommas in Anführungszeichen)
         function csvToJSON(csv) {
-            const lines = csv.split("\n");
+            const lines = csv.split(/\r\n|\n/); // Zerlegt Zeilen sicher
             const result = [];
+            
+            // Header sauber einlesen
             const headers = lines[0].split(",").map(h => h.replace(/"/g, '').trim());
 
             for (let i = 1; i < lines.length; i++) {
                 if (!lines[i]) continue;
-                const obj = {};
-                // Regex um Kommas innerhalb von Anführungszeichen zu ignorieren
-                const currentline = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
                 
-                if(currentline) {
+                const obj = {};
+                // Hier ist der magische Fix: Wir lesen Zeichen für Zeichen
+                const currentline = parseLine(lines[i]);
+                
+                // Nur wenn die Zeile auch Daten hat
+                if(currentline.length > 1) {
                     headers.forEach((header, index) => {
-                        // Daten säubern (Anführungszeichen weg)
                         let val = currentline[index] || "";
-                        val = val.replace(/^"|"$/g, '').trim(); 
+                        // Entferne Anführungszeichen am Anfang/Ende, falls Google welche gesetzt hat
+                        val = val.trim().replace(/^"|"$/g, ''); 
+                        // Ersetze doppelte Anführungszeichen durch einfache (CSV Standard)
+                        val = val.replace(/""/g, '"');
                         obj[header] = val;
                     });
                     result.push(obj);
                 }
             }
-            return result.reverse(); // Neueste zuerst
+            return result.reverse(); 
+        }
+
+        // Hilfsfunktion: Trennt nur bei echten Kommas
+        function parseLine(text) {
+            let result = [];
+            let curValue = "";
+            let inQuote = false;
+
+            for (let i = 0; i < text.length; i++) {
+                let char = text[i];
+                
+                // Umschalten, wenn wir Anführungszeichen sehen
+                if (char === '"' && text[i+1] !== '"') { 
+                    inQuote = !inQuote; 
+                }
+                
+                // Wenn Komma UND wir sind NICHT in Anführungszeichen -> Neue Spalte
+                if (char === ',' && !inQuote) { 
+                    result.push(curValue); 
+                    curValue = ""; 
+                    continue; 
+                }
+                
+                curValue += char;
+            }
+            result.push(curValue); // Letzten Wert hinzufügen
+            return result;
         }
 
         async function fetchCandidates() {
