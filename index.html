@@ -45,7 +45,7 @@
                 <p class="text-slate-500 mt-1">Eingehende Bewerbungen werden in Echtzeit analysiert.</p>
             </div>
             <div class="text-right">
-                <span class="text-sm text-slate-400">Letztes Update: <span id="last-update">...</span></span>
+                <span class="text-sm text-slate-400">Letztes Update: <span id="last-update">Lade...</span></span>
             </div>
         </div>
 
@@ -60,83 +60,85 @@
 
     <script>
         // ⚠️⚠️⚠️ HIER DEINEN LINK EINFÜGEN! ⚠️⚠️⚠️
-        // Der Link muss auf ...output=csv enden!
         const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTE7keWA9m5TY5QQM08GAwGnescMZU5WLz18VU3zJCWZytwmfrGoNPj9K_aQT7KkVj0wlVC8-SWDHxO/pub?gid=0&single=true&output=csv'; 
 
         // Konfiguration
-        const REFRESH_RATE = 3000; // Alle 3 Sekunden prüfen
+        const REFRESH_RATE = 3000; // Alle 3 Sekunden
 
-        // CSV Parser (Simple Version)
-       // Verbesserter CSV Parser (Erlaubt Leerzeichen & Kommas in Anführungszeichen)
+        // --- ROBUSTER CSV PARSER (Fixt das "Leerzeichen Problem") ---
+        function parseCSVLine(text) {
+            let result = [];
+            let curValue = "";
+            let inQuote = false;
+            for (let i = 0; i < text.length; i++) {
+                let char = text[i];
+                if (char === '"' && text[i+1] !== '"') { inQuote = !inQuote; }
+                if (char === ',' && !inQuote) { 
+                    result.push(curValue); curValue = ""; 
+                } else {
+                    curValue += char;
+                }
+            }
+            result.push(curValue);
+            return result;
+        }
+
         function csvToJSON(csv) {
-            const lines = csv.split(/\r\n|\n/); // Zerlegt Zeilen sicher
+            const lines = csv.split(/\r\n|\n/);
             const result = [];
-            
-            // Header sauber einlesen
+            // Header bereinigen
             const headers = lines[0].split(",").map(h => h.replace(/"/g, '').trim());
 
             for (let i = 1; i < lines.length; i++) {
                 if (!lines[i]) continue;
                 
-                const obj = {};
-                // Hier ist der magische Fix: Wir lesen Zeichen für Zeichen
-                const currentline = parseLine(lines[i]);
-                
-                // Nur wenn die Zeile auch Daten hat
+                // Nutze den smarten Parser statt split()
+                const currentline = parseCSVLine(lines[i]);
+
                 if(currentline.length > 1) {
+                    const obj = {};
                     headers.forEach((header, index) => {
                         let val = currentline[index] || "";
-                        // Entferne Anführungszeichen am Anfang/Ende, falls Google welche gesetzt hat
-                        val = val.trim().replace(/^"|"$/g, ''); 
-                        // Ersetze doppelte Anführungszeichen durch einfache (CSV Standard)
-                        val = val.replace(/""/g, '"');
+                        // Anführungszeichen entfernen, die CSV-Standard sind
+                        val = val.trim().replace(/^"|"$/g, '').replace(/""/g, '"');
+                        
+                        // Manuelles Entfernen von führenden Kommas falls Parser verrutscht
+                        if(val.startsWith(',')) val = val.substring(1);
+                        
                         obj[header] = val;
                     });
                     result.push(obj);
                 }
             }
-            return result.reverse(); 
+            // Umkehren damit neueste oben sind
+            return result.reverse();
         }
 
-        // Hilfsfunktion: Trennt nur bei echten Kommas
-        function parseLine(text) {
-            let result = [];
-            let curValue = "";
-            let inQuote = false;
-
-            for (let i = 0; i < text.length; i++) {
-                let char = text[i];
-                
-                // Umschalten, wenn wir Anführungszeichen sehen
-                if (char === '"' && text[i+1] !== '"') { 
-                    inQuote = !inQuote; 
-                }
-                
-                // Wenn Komma UND wir sind NICHT in Anführungszeichen -> Neue Spalte
-                if (char === ',' && !inQuote) { 
-                    result.push(curValue); 
-                    curValue = ""; 
-                    continue; 
-                }
-                
-                curValue += char;
-            }
-            result.push(curValue); // Letzten Wert hinzufügen
-            return result;
-        }
-
+        // --- FETCH LOGIC (Fixt das Flackern) ---
         async function fetchCandidates() {
             try {
-                // Random parameter gegen Caching
-                const response = await fetch(SHEET_CSV_URL + '&t=' + Date.now());
+                // Cache Busting für Google UND Proxy
+                const uniqueGoogleUrl = SHEET_CSV_URL + '&random=' + Math.random();
+                const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(uniqueGoogleUrl) + '&disableCache=' + Date.now();
+
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error("Netzwerkfehler");
+
                 const text = await response.text();
+
+                // Validierung: Ist das wirklich CSV mit unseren Daten?
+                if(!text.includes("Name") || text.length < 10) {
+                    console.warn("Proxy lieferte leere oder falsche Daten. Update übersprungen.");
+                    return; // Abbrechen -> Altes Bild bleibt stehen -> KEIN FLACKERN
+                }
+
                 const data = csvToJSON(text);
                 renderDashboard(data);
                 
-                const now = new Date();
-                document.getElementById('last-update').innerText = now.toLocaleTimeString();
+                document.getElementById('last-update').innerText = new Date().toLocaleTimeString();
+
             } catch (error) {
-                console.error("Fehler beim Laden:", error);
+                console.error("Silent Error:", error);
             }
         }
 
@@ -149,11 +151,16 @@
 
         function renderDashboard(candidates) {
             const grid = document.getElementById('candidate-grid');
-            grid.innerHTML = ''; // Leeren
+            
+            if(candidates.length === 0) {
+                 grid.innerHTML = `<div class="col-span-3 text-center py-12 text-gray-400">Warte auf eingehende Bewerbungen...</div>`;
+                 return;
+            }
+
+            grid.innerHTML = ''; // Grid leeren
 
             candidates.forEach((c, index) => {
-                // Mapping der Spaltennamen aus deinem Sheet (Pass diese Namen an deine Spalten an!)
-                // Wir nehmen an: Name, job_title, score, summary, Ablageort
+                // Mapping
                 const name = c['Name'] || c['name'] || 'Unbekannt';
                 const job = c['Job Titel'] || c['job_title'] || 'Bewerber';
                 const score = c['Score'] || c['score'] || 0;
@@ -161,7 +168,7 @@
                 const link = c['Ablageort'] || '#';
 
                 const scoreClass = getScoreColor(score);
-                const scoreWidth = score + '%';
+                const scoreWidth = Math.min(score, 100) + '%';
 
                 const html = `
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-enter hover:shadow-md transition-shadow" style="animation-delay: ${index * 100}ms">
@@ -191,15 +198,10 @@
                 `;
                 grid.innerHTML += html;
             });
-
-            if(candidates.length === 0) {
-                 grid.innerHTML = `<div class="col-span-3 text-center py-12 text-gray-400">Warte auf eingehende Bewerbungen...</div>`;
-            }
         }
 
-        // Init
+        // Start
         fetchCandidates();
-        // Live Polling starten
         setInterval(fetchCandidates, REFRESH_RATE);
 
     </script>
