@@ -16,8 +16,9 @@
             theme: {
                 extend: {
                     colors: {
-                        brand: '#3A929F',      // Die Akzentfarbe
-                        brandDark: '#2A6E78',  // Etwas dunkler für Hover-Effekte
+                        brand: '#3A929F',      // Die Akzentfarbe für Buttons/Balken
+                        brandDark: '#2A6E78',  // Hover
+                        brandLight: '#22d3ee', // Helles Cyan für Text auf dunklem Grund
                     }
                 }
             }
@@ -25,39 +26,41 @@
     </script>
 
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; padding-top: 130px; }
+        /* Padding oben angepasst, da der Header jetzt etwas schlanker ist */
+        body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; padding-top: 100px; }
+        
         .card-enter { animation: slideIn 0.5s ease-out forwards; opacity: 0; transform: translateY(20px); }
         @keyframes slideIn { to { opacity: 1; transform: translateY(0); } }
-        .pulse-dot { box-shadow: 0 0 0 0 rgba(58, 146, 159, 0.7); animation: pulse-brand 2s infinite; }
+        
+        /* Pulse-Farbe an das helle Cyan angepasst für Dark Mode Header */
+        .pulse-dot { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.7); animation: pulse-brand 2s infinite; }
         @keyframes pulse-brand {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(58, 146, 159, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(58, 146, 159, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(58, 146, 159, 0); }
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(34, 211, 238, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); }
         }
     </style>
 </head>
 <body class="text-slate-800">
 
-    <nav class="bg-white border-b border-gray-200 fixed w-full z-20 top-0 left-0 shadow-sm">
+    <nav class="bg-slate-900 border-b border-slate-800 fixed w-full z-20 top-0 left-0 shadow-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center py-4">
                 <div class="flex items-center gap-6">
                     
-                    <div class="bg-white rounded-lg p-1 border border-gray-100 shadow-sm w-[100px] h-[100px] flex items-center justify-center">
-                        <img src="https://www.berlin-vk.de/wp-content/uploads/go-x/u/97a6ffe1-52ac-4498-a7d0-5d31c3a34509/image-240x132.png" 
-                             alt="Firmenlogo" 
-                             class="max-w-full max-h-full object-contain">
-                    </div>
+                    <img src="https://www.berlin-vk.de/wp-content/uploads/go-x/u/97a6ffe1-52ac-4498-a7d0-5d31c3a34509/image-240x132.png" 
+                         alt="Firmenlogo" 
+                         class="h-14 w-auto object-contain">
                     
                     <div class="flex flex-col">
-                        <span class="font-bold text-2xl tracking-tight text-slate-900">Recruiting Copilot</span>
-                        <span class="text-xs font-semibold text-brand uppercase tracking-wider">Powered by AI Automation</span>
+                        <span class="font-bold text-2xl tracking-tight text-white">Recruiting Copilot</span>
+                        <span class="text-xs font-semibold text-brandLight uppercase tracking-wider">Powered by AI Automation</span>
                     </div>
                 </div>
 
                 <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-50 text-brand text-sm font-medium border border-cyan-100">
-                        <div class="w-2 h-2 rounded-full bg-brand pulse-dot"></div>
+                    <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800 text-brandLight text-sm font-medium border border-slate-700">
+                        <div class="w-2 h-2 rounded-full bg-brandLight pulse-dot"></div>
                         System Active
                     </div>
                 </div>
@@ -65,7 +68,7 @@
         </div>
     </nav>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 pt-8">
         
         <div class="flex justify-between items-end mb-8">
             <div>
