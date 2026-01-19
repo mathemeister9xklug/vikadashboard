@@ -4,32 +4,60 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recruiting AI Cockpit</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: '#3A929F',      // Die Akzentfarbe
+                        brandDark: '#2A6E78',  // Etwas dunkler für Hover-Effekte
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #F3F4F6; }
+        body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; padding-top: 130px; }
         .card-enter { animation: slideIn 0.5s ease-out forwards; opacity: 0; transform: translateY(20px); }
         @keyframes slideIn { to { opacity: 1; transform: translateY(0); } }
-        .pulse-dot { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); animation: pulse-green 2s infinite; }
-        @keyframes pulse-green {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        .pulse-dot { box-shadow: 0 0 0 0 rgba(58, 146, 159, 0.7); animation: pulse-brand 2s infinite; }
+        @keyframes pulse-brand {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(58, 146, 159, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(58, 146, 159, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(58, 146, 159, 0); }
         }
     </style>
 </head>
 <body class="text-slate-800">
 
-    <nav class="bg-white border-b border-gray-200 fixed w-full z-10 top-0 left-0">
+    <nav class="bg-white border-b border-gray-200 fixed w-full z-20 top-0 left-0 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center gap-3">
-                    <div class="bg-indigo-600 text-white font-bold rounded-lg p-2">AI</div>
-                    <span class="font-bold text-xl tracking-tight text-slate-900">Recruiting Copilot</span>
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center gap-6">
+                    
+                    <div class="bg-white rounded-lg p-1 border border-gray-100 shadow-sm w-[100px] h-[100px] flex items-center justify-center">
+                        <img src="https://www.berlin-vk.de/wp-content/uploads/go-x/u/97a6ffe1-52ac-4498-a7d0-5d31c3a34509/image-240x132.png" 
+                             alt="Firmenlogo" 
+                             class="max-w-full max-h-full object-contain">
+                    </div>
+                    
+                    <div class="flex flex-col">
+                        <span class="font-bold text-2xl tracking-tight text-slate-900">Recruiting Copilot</span>
+                        <span class="text-xs font-semibold text-brand uppercase tracking-wider">Powered by AI Automation</span>
+                    </div>
                 </div>
+
                 <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-green-50 text-green-700 text-sm font-medium border border-green-200">
-                        <div class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></div>
+                    <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-50 text-brand text-sm font-medium border border-cyan-100">
+                        <div class="w-2 h-2 rounded-full bg-brand pulse-dot"></div>
                         System Active
                     </div>
                 </div>
@@ -37,7 +65,7 @@
         </div>
     </nav>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         
         <div class="flex justify-between items-end mb-8">
             <div>
@@ -59,92 +87,41 @@
     </div>
 
     <script>
-        // ⚠️⚠️⚠️ HIER DEINEN LINK EINFÜGEN! ⚠️⚠️⚠️
+        // ⚠️⚠️⚠️ HIER DEINEN LINK EINFÜGEN ⚠️⚠️⚠️
         const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTE7keWA9m5TY5QQM08GAwGnescMZU5WLz18VU3zJCWZytwmfrGoNPj9K_aQT7KkVj0wlVC8-SWDHxO/pub?gid=0&single=true&output=csv'; 
+        
+        const REFRESH_RATE = 3000; 
 
-        // Konfiguration
-        const REFRESH_RATE = 3000; // Alle 3 Sekunden
-
-        // --- ROBUSTER CSV PARSER (Fixt das "Leerzeichen Problem") ---
-        function parseCSVLine(text) {
-            let result = [];
-            let curValue = "";
-            let inQuote = false;
-            for (let i = 0; i < text.length; i++) {
-                let char = text[i];
-                if (char === '"' && text[i+1] !== '"') { inQuote = !inQuote; }
-                if (char === ',' && !inQuote) { 
-                    result.push(curValue); curValue = ""; 
-                } else {
-                    curValue += char;
-                }
-            }
-            result.push(curValue);
-            return result;
-        }
-
-        function csvToJSON(csv) {
-            const lines = csv.split(/\r\n|\n/);
-            const result = [];
-            // Header bereinigen
-            const headers = lines[0].split(",").map(h => h.replace(/"/g, '').trim());
-
-            for (let i = 1; i < lines.length; i++) {
-                if (!lines[i]) continue;
-                
-                // Nutze den smarten Parser statt split()
-                const currentline = parseCSVLine(lines[i]);
-
-                if(currentline.length > 1) {
-                    const obj = {};
-                    headers.forEach((header, index) => {
-                        let val = currentline[index] || "";
-                        // Anführungszeichen entfernen, die CSV-Standard sind
-                        val = val.trim().replace(/^"|"$/g, '').replace(/""/g, '"');
-                        
-                        // Manuelles Entfernen von führenden Kommas falls Parser verrutscht
-                        if(val.startsWith(',')) val = val.substring(1);
-                        
-                        obj[header] = val;
-                    });
-                    result.push(obj);
-                }
-            }
-            // Umkehren damit neueste oben sind
-            return result.reverse();
-        }
-
-        // --- FETCH LOGIC (Fixt das Flackern) ---
         async function fetchCandidates() {
             try {
-                // Cache Busting für Google UND Proxy
+                // Anti-Cache Strategie
                 const uniqueGoogleUrl = SHEET_CSV_URL + '&random=' + Math.random();
                 const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(uniqueGoogleUrl) + '&disableCache=' + Date.now();
 
                 const response = await fetch(proxyUrl);
                 if (!response.ok) throw new Error("Netzwerkfehler");
 
-                const text = await response.text();
+                const csvText = await response.text();
 
-                // Validierung: Ist das wirklich CSV mit unseren Daten?
-                if(!text.includes("Name") || text.length < 10) {
-                    console.warn("Proxy lieferte leere oder falsche Daten. Update übersprungen.");
-                    return; // Abbrechen -> Altes Bild bleibt stehen -> KEIN FLACKERN
-                }
+                // Robustes Parsing mit PapaParse
+                Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true, 
+                    complete: function(results) {
+                        if (results.data && results.data.length > 0) {
+                            renderDashboard(results.data.reverse());
+                            document.getElementById('last-update').innerText = new Date().toLocaleTimeString();
+                        }
+                    },
+                    error: function(err) { console.error("CSV Fehler:", err); }
+                });
 
-                const data = csvToJSON(text);
-                renderDashboard(data);
-                
-                document.getElementById('last-update').innerText = new Date().toLocaleTimeString();
-
-            } catch (error) {
-                console.error("Silent Error:", error);
-            }
+            } catch (error) { console.error("Fetch Error:", error); }
         }
 
         function getScoreColor(score) {
             score = parseInt(score);
-            if (score >= 80) return 'text-green-600 bg-green-50 border-green-100';
+            if (score >= 80) return 'text-brand bg-cyan-50 border-cyan-100'; // Brand Color für Top Scores
             if (score >= 50) return 'text-yellow-600 bg-yellow-50 border-yellow-100';
             return 'text-red-600 bg-red-50 border-red-100';
         }
@@ -152,23 +129,28 @@
         function renderDashboard(candidates) {
             const grid = document.getElementById('candidate-grid');
             
-            if(candidates.length === 0) {
-                 grid.innerHTML = `<div class="col-span-3 text-center py-12 text-gray-400">Warte auf eingehende Bewerbungen...</div>`;
-                 return;
+            // Sicherheits-Check
+            if(candidates.length > 0 && !candidates[0]['Name'] && !candidates[0]['name']) {
+                return; 
             }
 
-            grid.innerHTML = ''; // Grid leeren
+            grid.innerHTML = ''; 
 
             candidates.forEach((c, index) => {
                 // Mapping
                 const name = c['Name'] || c['name'] || 'Unbekannt';
-                const job = c['Job Titel'] || c['job_title'] || 'Bewerber';
+                const job = c['Job Titel'] || c['Jobtitel'] || c['job_title'] || 'Bewerber';
                 const score = c['Score'] || c['score'] || 0;
-                const summary = c['Begründung'] || c['summary'] || 'Keine Analyse vorhanden.';
-                const link = c['Ablageort'] || '#';
+                const summary = c['Begründung'] || c['begründung'] || c['summary'] || '...';
+                const link = c['Ablageort'] || c['ablageort'] || '#';
 
                 const scoreClass = getScoreColor(score);
                 const scoreWidth = Math.min(score, 100) + '%';
+                
+                // Farbe für den Balken bestimmen
+                let barColorClass = 'bg-red-500';
+                if(score >= 50) barColorClass = 'bg-yellow-400';
+                if(score >= 80) barColorClass = 'bg-brand'; // Brand Color für Top Balken
 
                 const html = `
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-enter hover:shadow-md transition-shadow" style="animation-delay: ${index * 100}ms">
@@ -184,14 +166,14 @@
                     </div>
                     
                     <div class="w-full bg-gray-100 rounded-full h-2.5 mb-4">
-                        <div class="h-2.5 rounded-full ${score >= 80 ? 'bg-green-500' : (score >= 50 ? 'bg-yellow-400' : 'bg-red-500')}" style="width: ${scoreWidth}"></div>
+                        <div class="h-2.5 rounded-full ${barColorClass}" style="width: ${scoreWidth}"></div>
                     </div>
 
                     <div class="bg-slate-50 rounded-lg p-3 mb-4">
                         <p class="text-sm text-slate-600 leading-relaxed italic">"${summary}"</p>
                     </div>
 
-                    <a href="${link}" target="_blank" class="block w-full text-center py-2 px-4 rounded-lg bg-slate-900 text-white font-medium text-sm hover:bg-indigo-600 transition-colors">
+                    <a href="${link}" target="_blank" class="block w-full text-center py-2 px-4 rounded-lg bg-brand text-white font-medium text-sm hover:bg-brandDark transition-colors shadow-sm">
                         Akte öffnen &rarr;
                     </a>
                 </div>
@@ -200,7 +182,6 @@
             });
         }
 
-        // Start
         fetchCandidates();
         setInterval(fetchCandidates, REFRESH_RATE);
 
